@@ -41,18 +41,21 @@ def unitcell(type):
         type: a string which indicates the name of the unit cell
 
     Returns:
-        nodes: a dictionary {i: [x, y, z]} with i the node number and [x, y, z] the node coordinates
-        elements: a dictionary {e: [i, j]} with e the element number and [i, j] the node numbers involved in the element
+        nodes: a dictionary {i: [x, y, z]} with i the node number and [x, y, z] the node coordinates inside the unit cell
+        elements: a dictionary {e: [i, j]} with e the element number and [i, j] the node numbers involved in the element inside the unit cell
+        pvect: a list of lists which is the 3D periodicity vectors of the unit cell
     """
 
     if type == 'bcc':
         nodes = {1: [0, 0, 0], 2: [1, 0, 0], 3: [1, 1, 0], 4: [0, 1, 0], 5: [0.5, 0.5, 0.5], 6: [0, 0, 1], 7: [1, 0, 1], 8: [1, 1, 1], 9: [0, 1, 1]}
         elements = {1: [1, 2], 2: [2, 3], 3: [3, 4], 4: [4, 1], 5: [5, 1], 6: [5, 2], 7: [5, 3], 8: [5, 4], 9: [5, 6], 10: [5, 7], 11: [5, 8], 12: [5, 9], 13: [6, 7], 14: [7, 8], 15: [8, 9], 16: [9, 6], 17: [1, 6], 18: [2, 7], 19: [3, 8], 20: [4, 9]}
+        pvects = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
+
         logger.info('Unit cell successfully called')
     else:
         logger.error('[unitcell] Unit cell not implemented')
 
-    return nodes, elements
+    return nodes, elements, pvects
 
 
 
@@ -85,7 +88,7 @@ def plotmesh(nodes, elements):
     plt.show()
 
 
-def scaling(sc_valx, sc_valy, sc_valz, nodes):
+def unit_cell_scaling(sc_valx, sc_valy, sc_valz, unitnodes, unitelements, pvects):
     """
     Scales a volume by a given scaling factor along x, y and z
 
@@ -93,18 +96,26 @@ def scaling(sc_valx, sc_valy, sc_valz, nodes):
         sc_valx: scaling parameter along x
         sc_valy: scaling parameter along y
         sc_valz: scaling parameter along z
+        unitnodes: a dict containing the nodes inside the unit cell
+        unitelements: a dict containing the elements of the unit cell
+        pvects: a list of lists 
 
     Returns:
         sc_nodes: scaled nodes
     """
-    sc_nodes = {}
-    for nodenb, nodecoord in nodes.items(): 
-        sc_coord = [sc_valx*nodecoord[0], sc_valy*nodecoord[1], sc_valz*nodecoord[2]]
-        sc_nodes.update({nodenb: sc_coord})
+    sc_unitnodes = {}
+    sc_pvects = []
+    for unitnodenb, unitnodecoord in unitnodes.items(): 
+        sc_coord = [sc_valx*unitnodecoord[0], sc_valy*unitnodecoord[1], sc_valz*unitnodecoord[2]]
+        sc_unitnodes.update({unitnodenb: sc_coord})
+
+    for vect in pvects:
+        sc_vect = [sc_valx*vect[0], sc_valy*vect[1], sc_valz*vect[2]]
+        sc_pvects.append(sc_vect)
     
     logger.info('[scaling] scaling by x: %s, y: %s, z: %s successful', sc_valx, sc_valy, sc_valz)
 
-    return sc_nodes
+    return sc_unitnodes, unitelements, sc_pvects
 
 
 def are_nodes_equal(node1, node2, threshold=1e-6):
@@ -128,6 +139,23 @@ def are_nodes_equal(node1, node2, threshold=1e-6):
     return distance < threshold
 
 
+def are_elements_equal(element1, element2):
+    """
+    Check if two elements are equal.
+
+    Args:
+        element1: list representing the first element
+        element2: list representing the second element
+
+    Returns:
+        True if the elements are equal. False otherwise.
+    """
+    if set(element1) == set(element2):
+     return True
+    
+    else:
+        return False
+
 
 def create_volume(unitnodes, unitelements, pvectx, pvecty, pvectz, nx, ny, nz):
     """
@@ -150,35 +178,92 @@ def create_volume(unitnodes, unitelements, pvectx, pvecty, pvectz, nx, ny, nz):
 
     nodes = {}
     elements = {}
+    logger.debug('[create-volume] len(nodes): %s', len(nodes))
 
     node_nb = 0
     for i in range(nx):
-        mi = i+1
+        mi = i
+        logger.debug('[create-volume] mi: %s', mi)
         for j in range(ny):
-            mj = j+1
+            mj = j
+            logger.debug('[create-volume] mj: %s', mj)
             for k in range(nz):
-                mk = k+1
+                mk = k
+                logger.debug('[create-volume] mk: %s', mk)
 
+                #Translate nodes from unit cell and identify which have aliases on the already existing nodes
                 aliases = {}
-                cand_nodes = {}
-                cand_elements = {}
+                add_nodes = {}
 
 
                 for unitnodenb, unitnodecoord in unitnodes.items(): 
-                    cand_number = 0
-                    cand_node = [unitnodecoord[0] + mi*pvectx, unitnodecoord[1] + mj*pvecty, unitnodecoord[2] + mk*pvectz]
+                    #Translate node
+                    add_node = [unitnodecoord[0] + mi*pvectx[0] + mj*pvecty[0] + mk*pvectz[0], unitnodecoord[1] + mi*pvectx[1] + mj*pvecty[1] + mk*pvectz[1], unitnodecoord[2] + mi*pvectx[2] + mj*pvecty[2] + mk*pvectz[2]]
+                    logger.debug('[create-volume] {unitnodenb: add_node}: {%s: %s}', unitnodenb, add_node)
+                    add_nodes.update({unitnodenb: add_node})
 
+                    #Create aliases dictionary to change the node numbers and element numbers when concatenating the node list 
                     for nodenb, nodecoord in nodes.items(): 
-                        if are_nodes_equal(cand_node, nodecoord):
+                        #Check if it has an alias in the already constructed nodes, if yes, give the add_nodenb this alias
+                        if are_nodes_equal(add_node, nodecoord):
                             aliases.update({unitnodenb: nodenb})
-                        else:
-                            cand_number = node + 1
-                            cand_nodes.update(len)
 
+
+
+
+                #Initialise the next node number in the node dict
+                next_nodenb = len(nodes)+1
+
+                for add_nodenb, add_nodecoord in add_nodes.items(): 
+                    #If the node number does not have an alias in the aliases dict, give it a new number not in nodenb
+                    if add_nodenb not in aliases.keys(): 
+                        aliases.update({add_nodenb: next_nodenb})
+                        logger.debug('[create-volume] next_nodenb: %s', next_nodenb)
                     
-                logger.debug('[create_volume] mi = %s, mj = %s and mk = %s aliases = %s', mi, mj, mk, aliases)
 
-    return nodes
+                        next_nodenb = next_nodenb + 1
+
+                logger.debug('[create-volume] aliases: %s', aliases)
+
+                #Add the nodes to the node dict
+                for add_nodenb, add_nodecoord in add_nodes.items(): 
+                    nodes.update({aliases[add_nodenb]: add_nodecoord})
+                logger.debug('[create-volume] nodes: %s', nodes)
+
+                #Now the element list needs to use the aliases dict to create a list of elemets with the aliases as node numbers
+                add_elements = {}
+                for uniteltnb, unitelt in unitelements.items():
+                    add_elements.update({uniteltnb: [aliases[unitelt[0]],aliases[unitelt[1]]]})
+                
+                logger.debug('[create-volume] add_elements: %s', add_elements)
+
+                #Need to check element and add_element to see if there are any doubles
+
+                add_elementstoremove = []
+
+                for add_elementnb, add_element in add_elements.items():
+                    for elementnb, element in elements.items():
+                        if are_elements_equal(element, add_element) == True and add_element not in add_elementstoremove :
+                            add_elementstoremove .append(set(add_element))
+                
+                logger.debug('[create_volume] add_elementstoremove : %s', add_elementstoremove )
+                logger.debug('[create_volume] len(add_elementslist): %s', len(add_elementstoremove ))
+
+
+                #Add elements without doubles to the list of elements
+                #Initialise the next element number in the element dict 
+                next_elementnb = len(elements)+1
+
+                for add_elementnb, add_element in add_elements.items():
+                    #If the element is not a double, give it a new number not in element number
+                    if set(add_element) not in add_elementstoremove: 
+                        elements.update({next_elementnb: add_element})
+                        next_elementnb = next_elementnb + 1
+
+                logger.debug('[create_volume] elements: %s', elements)
+
+
+    return nodes, elements
 
 
 #------------------------------------------------------------------------
@@ -192,12 +277,35 @@ logger.debug('test_nodes %s', test_nodes)
 test_elements = test_unitcell[1]
 logger.debug('test_elements %s', test_elements)
 
+test_pvects = test_unitcell[2]
+logger.debug('test_pvects %s', test_pvects)
+
 plotmesh(test_nodes, test_elements)
 
-sc_test_nodes = scaling(0.2, 0.5, 0.2, test_nodes)
+sc_test_unitcell = unit_cell_scaling(0.2, 0.5, 0.2, test_nodes, test_elements, test_pvects)
+sc_test_nodes = sc_test_unitcell[0]
+logger.debug('sc_test_nodes %s', sc_test_nodes)
 
-plotmesh(sc_test_nodes, test_elements)
+sc_test_elements = sc_test_unitcell[1]
+logger.debug('sc_test_elements %s', sc_test_elements)
 
-test_volume = create_volume(test_nodes, test_elements, 1, 1, 1, 2, 1, 1)
+sc_test_pvects = sc_test_unitcell[2]
+logger.debug('sc_test_pvects %s', sc_test_pvects)
 
-logger.debug('test_volume %s', test_volume)
+plotmesh(sc_test_nodes, sc_test_elements)
+
+
+test_volume = create_volume(test_nodes, test_elements, test_pvects[0], test_pvects[1], test_pvects[2], 2, 2, 2)
+
+test_volume_nodes = test_volume[0]
+test_volume_elements = test_volume[1]
+
+plotmesh(test_volume_nodes, test_volume_elements)
+
+
+sc_test_volume = create_volume(sc_test_nodes, sc_test_elements, sc_test_pvects[0], sc_test_pvects[1], sc_test_pvects[2], 2, 2, 2)
+
+sc_test_volume_nodes = sc_test_volume[0]
+sc_test_volume_elements = sc_test_volume[1]
+
+plotmesh(sc_test_volume_nodes, test_volume_elements)
