@@ -52,6 +52,21 @@ def unitcell(type):
         pvects = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
 
         logger.info('Unit cell successfully called')
+
+    elif type == 'cubic':
+        nodes = {1: [0, 0, 0], 2: [1, 0, 0], 3: [1, 1, 0], 4: [0, 1, 0], 5: [0, 0, 1], 6: [1, 0, 1], 7: [1, 1, 1], 8: [0, 1, 1]}
+        elements = {1: [1, 2], 2: [2, 3], 3: [3, 4], 4: [4, 1], 5: [5, 6], 6: [6, 7], 7: [7, 8], 8: [8, 5], 9: [1, 5], 10: [2, 6],  11: [3, 7], 12: [4, 8]}
+        pvects = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
+
+        logger.info('Unit cell successfully called')
+
+    elif type == 'fcc': #Also called octet truss
+        nodes = {1: [0, 0, 0], 2: [1, 0, 0], 3: [1, 1, 0], 4: [0, 1, 0], 5: [0, 0, 1], 6: [1, 0, 1], 7: [1, 1, 1], 8: [0, 1, 1], 9: [0.5, 0.5, 0], 10: [0.5, 0.5, 1], 11: [0.5, 0, 0.5], 12: [0.5, 1, 0.5], 13: [0, 0.5, 0.5], 14: [1, 0.5, 0.5]}
+        elements = {1: [9,1], 2: [9, 2], 3: [9, 3], 4: [9, 4], 5: [9, 14], 6: [9, 11], 7: [9, 12], 8: [9, 13], 9: [10, 5], 10: [10, 6], 11: [10, 7], 12: [10, 8], 13: [10, 11], 14: [10, 12], 15: [10, 13], 16: [10, 14], 17: [11, 1], 18: [11, 2], 19: [11, 5], 20: [11, 6], 21: [11, 14], 22: [11, 13], 23: [12, 8], 24: [12, 3], 25: [12, 4], 26: [12, 7], 27: [12, 14], 28: [12, 13], 29: [13, 5], 30: [13, 1], 31: [13, 4], 32: [13, 8], 33: [14, 2], 34: [14, 3], 35: [14, 6], 36: [14, 7]}
+        pvects = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
+
+        logger.info('Unit cell successfully called')
+
     else:
         logger.error('[unitcell] Unit cell not implemented')
 
@@ -269,7 +284,7 @@ def create_volume(unitnodes, unitelements, pvectx, pvecty, pvectz, nx, ny, nz):
 #------------------------------------------------------------------------
 
 
-test_unitcell = unitcell('bcc')
+test_unitcell = unitcell('fcc')
 
 test_nodes = test_unitcell[0]
 logger.debug('test_nodes %s', test_nodes)
@@ -295,7 +310,7 @@ logger.debug('sc_test_pvects %s', sc_test_pvects)
 plotmesh(sc_test_nodes, sc_test_elements)
 
 
-test_volume = create_volume(test_nodes, test_elements, test_pvects[0], test_pvects[1], test_pvects[2], 2, 2, 2)
+test_volume = create_volume(test_nodes, test_elements, test_pvects[0], test_pvects[1], test_pvects[2], 3, 3, 3)
 
 test_volume_nodes = test_volume[0]
 test_volume_elements = test_volume[1]
@@ -303,7 +318,7 @@ test_volume_elements = test_volume[1]
 plotmesh(test_volume_nodes, test_volume_elements)
 
 
-sc_test_volume = create_volume(sc_test_nodes, sc_test_elements, sc_test_pvects[0], sc_test_pvects[1], sc_test_pvects[2], 2, 2, 2)
+sc_test_volume = create_volume(sc_test_nodes, sc_test_elements, sc_test_pvects[0], sc_test_pvects[1], sc_test_pvects[2], 3, 3, 3)
 
 sc_test_volume_nodes = sc_test_volume[0]
 sc_test_volume_elements = sc_test_volume[1]
