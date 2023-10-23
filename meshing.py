@@ -281,10 +281,55 @@ def create_volume(unitnodes, unitelements, pvectx, pvecty, pvectz, nx, ny, nz):
     return nodes, elements
 
 
+def export_build(nodes, elements, path):
+    """
+    Exports the nodes and elements in the appropriate format for building at specified path
+
+    Args:
+        nodes: a dictionary {i: [x, y, z]} with i the node number and [x, y, z] the node coordinates or the unit cell
+        elements: a dictionary {e: [i, j]} with e the element number and [i, j] the node numbers involved in the element of the unit cell
+        path: path of file
+
+    Returns:
+        file in specified path
+    """
+
+    with open(path, "w") as file:
+    for nodenb, nodecoord in nodes.items():
+        file.write(f"{nodecoord},")
+
+    file.write(f"\n")
+    for elementnb, element in elements.items():
+        file.write(f"{[element[0]-1, element[1]-1]},")
+
+
+def export_mesh(nodes, elements, path):
+    """
+    Exports the nodes and elements at specified path
+
+    Args:
+        nodes: a dictionary {i: [x, y, z]} with i the node number and [x, y, z] the node coordinates or the unit cell
+        elements: a dictionary {e: [i, j]} with e the element number and [i, j] the node numbers involved in the element of the unit cell
+        path: path of file
+
+    Returns:
+        file in specified path
+    """
+
+    with open(path, "w") as file:
+    file.write(f"Nodes: \n")
+    for nodenb, nodecoord in nodes.items():
+        file.write(f"{nodenb} {nodecoord} \n")
+
+    file.write(f"`Elements`: \n")
+    for elementnb, element in elements.items():
+        file.write(f"{elementnb} {element} \n")
+
+
 #------------------------------------------------------------------------
 
 
-test_unitcell = unitcell('fcc')
+test_unitcell = unitcell('bcc')
 
 test_nodes = test_unitcell[0]
 logger.debug('test_nodes %s', test_nodes)
@@ -297,7 +342,7 @@ logger.debug('test_pvects %s', test_pvects)
 
 plotmesh(test_nodes, test_elements)
 
-sc_test_unitcell = unit_cell_scaling(0.2, 0.5, 0.2, test_nodes, test_elements, test_pvects)
+sc_test_unitcell = unit_cell_scaling(16.66, 16.66, 16.66, test_nodes, test_elements, test_pvects)
 sc_test_nodes = sc_test_unitcell[0]
 logger.debug('sc_test_nodes %s', sc_test_nodes)
 
@@ -323,4 +368,7 @@ sc_test_volume = create_volume(sc_test_nodes, sc_test_elements, sc_test_pvects[0
 sc_test_volume_nodes = sc_test_volume[0]
 sc_test_volume_elements = sc_test_volume[1]
 
-plotmesh(sc_test_volume_nodes, test_volume_elements)
+plotmesh(sc_test_volume_nodes, sc_test_volume_elements)
+
+
+
